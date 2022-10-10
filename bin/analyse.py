@@ -67,8 +67,8 @@ with open(input_file) as pipe:
             keywords = [];
             t_node = {
                 'name': meta_info['name'],
-                'size': sizeof_fmt(meta_info['piece length'] * len(meta_info['pieces'])),
-                'length': meta_info['piece length'] * len(meta_info['pieces']),
+                'size': sizeof_fmt(meta_info['piece length'] * len(meta_info['pieces']) / 20),
+                'length': meta_info['piece length'] * len(meta_info['pieces']) / 20,
                 '_id': t_hash,
                 'keywords': keywords,
             }

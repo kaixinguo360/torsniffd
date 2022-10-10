@@ -53,6 +53,9 @@ trap before_exit 2 3 15
 
 # Create Log Dir
 mkdir -p ./log
+touch ./log/hash.txt
+touch ./log/debug.txt
+touch ./log/log.txt
 
 # Create Run Dir
 mkdir -p "$RUN_DIR"
