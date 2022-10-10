@@ -1,0 +1,16 @@
+[Unit]
+Description=Torrent Sniffer
+After=syslog.target
+After=network.target
+After=mariadb.service mysqld.service postgresql.service memcached.service redis.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/torsniff/bin
+ExecStart=/opt/torsniff/bin/run.sh
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
