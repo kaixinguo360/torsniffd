@@ -88,10 +88,7 @@ echo "MIAN_PID=$MAIN_PID"
 while read TORRENT
 do
     Hash="$(basename -s .torrent "$TORRENT")"
-    #printf '%s\n' "$Hash $(date +'%F %T.%3N')" >> ./log/debug.txt
-    #[ -n "$(sed -n "/^$Hash/{=;s/$/./}" ./log/hash.txt)" ] && {
-    #    sed -i "/^$Hash/ s/$/./" ./log/hash.txt
-    grep -q "^$Hash" ./log/hash.txt && {
+    grep -q "^$Hash" ./log/hash* && {
         printf '%s\n' "$Hash $(date +'%s.%3N') f" >> ./log/debug.txt
         rm_torrent "$TORRENT"
         continue
