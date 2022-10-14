@@ -3,7 +3,7 @@
 cd "$(dirname $(realpath "$0"))/.."
 
 if [ -n "$(command -v rg)" ]; then
-    WD='\b'
+    WD='\\b'
 fi
 ./sbin/torrent-raw-search.sh "$(
 printf %s "$*" | sed \

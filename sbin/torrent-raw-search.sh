@@ -3,7 +3,7 @@
 cd "$(dirname $(realpath "$0"))/.."
 
 TEXT="$*"
-echo "Regex: $TEXT"
+printf 'Regex: %s\n' "$TEXT"
 
 (
 if [ -n "$(command -v rg)" ]; then
