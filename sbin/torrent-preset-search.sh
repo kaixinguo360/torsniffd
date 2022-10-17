@@ -1,9 +1,9 @@
 #!/bin/sh
 
-cd "$(dirname $(realpath "$0"))/.."
-
-INPUT_FILE="${1?}"
+INPUT_FILE="$(realpath "${1?}")"
 SEPARATOR="[ -_.]*"
+
+cd "$(dirname $(realpath "$0"))/.."
 
 ./sbin/torrent-raw-search.sh "$(
 sed -E \
@@ -12,7 +12,14 @@ sed -E \
     -e 's/\$$/($|\t)/g' \
     -e '$ ! s/$/|/' \
     "$INPUT_FILE" \
-    | perl -ne 'chomp;print'
+    | perl -ne 'chomp;print' \
+    | {
+        if [ -n "$(command -v rg)" ]; then
+            sed -E 's/\\[<>]/\\b/g'
+        else
+            cat
+        fi
+    }
 )"
 
 #printf '%s\n' "Regex: $REGEX"
