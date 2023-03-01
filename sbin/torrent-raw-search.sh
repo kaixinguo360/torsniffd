@@ -19,4 +19,4 @@ else
         -E \
         "$TEXT" ./log/log*
 fi
-) | ./sbin/torrent-format.sh
+) | ./sbin/torrent-format.sh "$TEXT"
