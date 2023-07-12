@@ -5,6 +5,9 @@ cd $(realpath $(dirname $0)/..)
 # Load Config
 [ -d ./conf ] && for config in $(ls ./conf/*.sh); do . "$config"; done
 
+LISTEN_PORT="${LISTEN_PORT:-6881}"
+echo "LISTEN_PORT=$LISTEN_PORT"
+
 MAX_FRIENDS="${MAX_FRIENDS:-500}"
 echo "MAX_FRIENDS=$MAX_FRIENDS"
 
@@ -16,6 +19,14 @@ echo "TORRENT_HOME=$TORRENT_HOME"
 
 RUN_DIR="${RUN_DIR:-$(realpath ./run)}"
 echo "RUN_DIR=$RUN_DIR"
+
+REDIS_HOST="${REDIS_HOST:-localhost}"
+export REDIS_HOST
+echo "REDIS_HOST=$REDIS_HOST"
+
+REDIS_PORT="${REDIS_PORT:-6379}"
+export REDIS_PORT
+echo "REDIS_PORT=$REDIS_PORT"
 
 rm_torrent() {
     local _TORRENT="$1"
@@ -40,8 +51,6 @@ before_exit() {
     printf 'cleaning run dir... '
     rm -f "$RUN_DIR/main.pid"
     rm -f "$RUN_DIR/torrent.pipe"
-    rm -f "$RUN_DIR/filter.pid"
-    rm -f "$RUN_DIR/filtered.pipe"
     [ -z "$(ls -A "$RUN_DIR" 2>&1)" ] && rm -r "$RUN_DIR"
     echo done.
 
@@ -69,6 +78,7 @@ mkdir -p "$TORRENT_HOME"
 touch "$TORRENT_HOME/TORRENT_HOME"
 (
 ./bin/torsniff \
+    --port "${LISTEN_PORT}" \
     --dir "${TORRENT_HOME}" \
     --friends "$MAX_FRIENDS" \
     --peers "$MAX_PEERS" \
@@ -82,7 +92,17 @@ MAIN_PID="$!"
 echo "$MAIN_PID" > "$RUN_DIR/main.pid"
 echo "MIAN_PID=$MAIN_PID"
 
-# De-duplication Filter Thread
+# Python Post-Process Thread
+./bin/analyse.py "$RUN_DIR/torrent.pipe" >> ./log/log.txt
+
+pkill -P "$MAIN_PID"
+rm -f "$RUN_DIR/main.pid" "$RUN_DIR/torrent.pipe"
+[ -z "$(ls -A "$RUN_DIR" 2>&1)" ] && rm -r "$RUN_DIR"
+
+exit 0
+
+# De-duplication Filter Thread (Deprecated, too slow, too simple)
+
 [ ! -e "$RUN_DIR/filtered.pipe" ] && mkfifo "$RUN_DIR/filtered.pipe"
 (
 while read TORRENT
@@ -102,15 +122,6 @@ done < "$RUN_DIR/torrent.pipe"
 FILTER_PID="$!"
 echo "$FILTER_PID" > "$RUN_DIR/filter.pid"
 echo "FILTER_PID=$FILTER_PID"
-
-# Python Post-Process Thread
-./bin/analyse.py "$RUN_DIR/filtered.pipe" >> ./log/log.txt
-
-pkill -P "$MAIN_PID"
-rm -f "$RUN_DIR/main.pid" "$RUN_DIR/torrent.pipe"
-[ -z "$(ls -A "$RUN_DIR" 2>&1)" ] && rm -r "$RUN_DIR"
-
-exit 0
 
 # Aria2 Post-Process Thread (Deprecated, too slow, too simple)
 

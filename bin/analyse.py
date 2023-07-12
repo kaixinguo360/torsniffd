@@ -4,11 +4,19 @@
 import os
 import sys
 import collections
+import traceback
+from datetime import datetime
+
+import redis
 from bencoder import bdecode
 
 #envs = collections.defaultdict(lambda:None, os.environ)
 max_file_count = 1000
 input_file = sys.argv[1]
+redis_host=os.getenv('REDIS_HOST', 'localhost')
+redis_port=int(os.getenv('REDIS_PORT', '6379'))
+
+r = redis.StrictRedis(host=redis_host, port=redis_port, db=0)
 
 def dir_empty(dir_path):
     try:
@@ -45,7 +53,9 @@ def obj_decode(d):
         d = new_list
     return d
 
-with open(input_file) as pipe:
+with open('./log/debug.txt', 'w') as f_debug, \
+    open('./log/hash.txt', 'w') as f_hash, \
+    open(input_file) as pipe:
     while True:
         try:
             torrent = pipe.readline().strip()
@@ -54,7 +64,41 @@ with open(input_file) as pipe:
 
             #print(f"torrent: {torrent}")
             t_hash = torrent.split('/')[-1].split('.')[0]
+            now = str(datetime.timestamp(datetime.now()))[:14]
             #print(f"hash: {t_hash}")
+
+            # Use redis to de-duplication (fast)
+            try:
+                if r.exists(t_hash):
+                    f_debug.write(f"{t_hash} {now} f\n")
+                    try:
+                        os.remove(torrent)
+                    except Exception as e:
+                        pass
+                    continue
+                    r.expire(t_hash, 3600)
+                    r.incr(t_hash)
+            except Exception as e:
+                pass
+
+            # Record uncached hash to redis
+            r.setex(t_hash, 3600, 1)
+
+            # Use hash.txt to de-duplication (slowly)
+            try:
+                if os.system(f"grep -q {t_hash} ./log/hash*") == 0:
+                    f_debug.write(f"{t_hash} {now} f\n")
+                    try:
+                        os.remove(torrent)
+                    except Exception as e:
+                        pass
+                    continue
+            except Exception as e:
+                continue
+
+            # Record new hash to txt file
+            f_debug.write(f"{t_hash} {now} p\n")
+            f_hash.write(f"{t_hash}\n")
 
             with open(torrent, "rb") as t:
                 meta_data = bdecode(t.read())
@@ -127,14 +171,17 @@ with open(input_file) as pipe:
             #pp = pprint.PrettyPrinter(indent=2)
             #pp.pprint(t_node)
 
-            os.remove(torrent)
-            p_dir = os.path.dirname(torrent)
-            while True:
-                if dir_empty(p_dir):
-                    os.rmdir(p_dir)
-                    p_dir = os.path.dirname(p_dir)
-                else:
-                    break
+            try:
+                os.remove(torrent)
+                p_dir = os.path.dirname(torrent)
+                while True:
+                    if dir_empty(p_dir):
+                        os.rmdir(p_dir)
+                        p_dir = os.path.dirname(p_dir)
+                    else:
+                        break
+            except Exception as e:
+                pass
 
         except FileNotFoundError as e:
             pass
@@ -143,7 +190,9 @@ with open(input_file) as pipe:
             if 't_hash' not in dir():
                 t_hash = '0000000000000000000000000000000000000000'
             print(t_hash + '\terror:' + str(e).replace('\n', '\\n'))
+            traceback.print_exc(file=sys.stderr)
             pass
 
         sys.stdout.flush()
+        sys.stderr.flush()
 

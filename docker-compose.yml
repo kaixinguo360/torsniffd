@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  main:
+    build: .
+    ports:
+      - 6881:6881/tcp
+      - 6881:6881/udp
+    volumes:
+      - ./conf:/opt/torsniff/conf:ro
+      - ./log:/opt/torsniff/log:delegated
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:alpine
+    command: redis-server --save 60 1
+    volumes:
+      - ./redis:/data
+

@@ -1,0 +1,5 @@
+/run/
+/log/
+/.git/
+/conf/*
+!/conf/00-default.sh
