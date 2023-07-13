@@ -3,5 +3,6 @@
 #MAX_PEERS=400
 #TORRENT_HOME=/tmp/torrents
 #RUN_DIR=/opt/torsniff/run
+#ENABLE_REDIS=
 #REDIS_HOST=localhost
 #REDIS_POER=6379

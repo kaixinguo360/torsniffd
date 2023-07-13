@@ -159,20 +159,18 @@ with open('./log/debug.txt', 'a') as f_debug, \
                     f_name = file['path'][-1]
                     f_length = file['length']
                     fs_node = fs
-                    for i in range(len(f_path) - 1):
-                        dir_name = f_path[i]
+                    for j in range(len(f_path) - 1):
+                        dir_name = f_path[j]
+                        keywords.append('d:' + dir_name)
                         if not dir_name in fs_node:
                             fs_node[dir_name] = {}
-                        if fcount < max_file_count:
-                            fcount = fcount + 1
-                            keywords.append('d:' + dir_name)
                         fs_node = fs_node[dir_name]
+                    fs_node[f_name] = f_length
                     if fcount < max_file_count:
                         fcount = fcount + 1
                         keywords.append('f:' + f_name)
-                    fs_node[f_name] = f_length
-                if fcount == max_file_count:
-                    keywords.append('skip:' + str(len(meta_info['files']) - max_file_count))
+                    elif fcount == max_file_count:
+                        keywords.append('skip:' + str(len(meta_info['files']) - max_file_count))
                 t_node['multifile'] = True
                 t_node['files'] = fs
             else:
