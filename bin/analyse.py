@@ -13,6 +13,7 @@ from bencoder import bdecode
 #envs = collections.defaultdict(lambda:None, os.environ)
 max_file_count = 1000
 input_file = sys.argv[1]
+enable_redis=os.getenv('ENABLE_REDIS')
 redis_host=os.getenv('REDIS_HOST', 'localhost')
 redis_port=int(os.getenv('REDIS_PORT', '6379'))
 
@@ -53,8 +54,59 @@ def obj_decode(d):
         d = new_list
     return d
 
-with open('./log/debug.txt', 'w') as f_debug, \
-    open('./log/hash.txt', 'w') as f_hash, \
+def rm_torrent(torrent):
+    try:
+        os.remove(torrent)
+        p_dir = os.path.dirname(torrent)
+        while True:
+            if dir_empty(p_dir):
+                os.rmdir(p_dir)
+                p_dir = os.path.dirname(p_dir)
+            else:
+                break
+    except Exception as e:
+        traceback.print_exc(file=sys.stderr)
+        pass
+
+# Use redis to de-duplication (fast)
+def check_hash_with_redis(t_hash):
+    if not enable_redis:
+        return True
+    try:
+        if r.exists(t_hash):
+            r.expire(t_hash, 3600)
+            r.incr(t_hash)
+            return False
+        # Record uncached hash to redis
+        r.setex(t_hash, 3600, 1)
+        return True
+    except Exception as e:
+        return True
+
+# Use hash.txt to de-duplication (slowly)
+def check_hash_with_file(t_hash):
+    try:
+        if os.system(f"grep -q {t_hash} ./log/hash*") == 0:
+            return False
+        # Record new hash to txt file
+        f_hash.write(f"{t_hash}\n")
+        f_hash.flush()
+        return True
+    except Exception as e:
+        print(e, file=sys.stderr)
+        return False
+
+# Check hash to de-duplication
+def check_hash(t_hash):
+    if not check_hash_with_redis(t_hash):
+        return False
+    if not check_hash_with_file(t_hash):
+        return False
+    return True
+
+
+with open('./log/debug.txt', 'a') as f_debug, \
+    open('./log/hash.txt', 'a') as f_hash, \
     open(input_file) as pipe:
     while True:
         try:
@@ -67,38 +119,15 @@ with open('./log/debug.txt', 'w') as f_debug, \
             now = str(datetime.timestamp(datetime.now()))[:14]
             #print(f"hash: {t_hash}")
 
-            # Use redis to de-duplication (fast)
-            try:
-                if r.exists(t_hash):
-                    f_debug.write(f"{t_hash} {now} f\n")
-                    try:
-                        os.remove(torrent)
-                    except Exception as e:
-                        pass
-                    continue
-                    r.expire(t_hash, 3600)
-                    r.incr(t_hash)
-            except Exception as e:
-                pass
-
-            # Record uncached hash to redis
-            r.setex(t_hash, 3600, 1)
-
-            # Use hash.txt to de-duplication (slowly)
-            try:
-                if os.system(f"grep -q {t_hash} ./log/hash*") == 0:
-                    f_debug.write(f"{t_hash} {now} f\n")
-                    try:
-                        os.remove(torrent)
-                    except Exception as e:
-                        pass
-                    continue
-            except Exception as e:
+            if not check_hash(t_hash):
+                f_debug.write(f"{t_hash} {now} f\n")
+                f_debug.flush()
+                rm_torrent(torrent)
                 continue
 
-            # Record new hash to txt file
+            # Record new hash to debug file
             f_debug.write(f"{t_hash} {now} p\n")
-            f_hash.write(f"{t_hash}\n")
+            f_debug.flush()
 
             with open(torrent, "rb") as t:
                 meta_data = bdecode(t.read())
@@ -171,17 +200,7 @@ with open('./log/debug.txt', 'w') as f_debug, \
             #pp = pprint.PrettyPrinter(indent=2)
             #pp.pprint(t_node)
 
-            try:
-                os.remove(torrent)
-                p_dir = os.path.dirname(torrent)
-                while True:
-                    if dir_empty(p_dir):
-                        os.rmdir(p_dir)
-                        p_dir = os.path.dirname(p_dir)
-                    else:
-                        break
-            except Exception as e:
-                pass
+            rm_torrent(torrent)
 
         except FileNotFoundError as e:
             pass

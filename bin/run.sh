@@ -20,6 +20,9 @@ echo "TORRENT_HOME=$TORRENT_HOME"
 RUN_DIR="${RUN_DIR:-$(realpath ./run)}"
 echo "RUN_DIR=$RUN_DIR"
 
+export ENABLE_REDIS
+echo "ENABLE_REDIS=$ENABLE_REDIS"
+
 REDIS_HOST="${REDIS_HOST:-localhost}"
 export REDIS_HOST
 echo "REDIS_HOST=$REDIS_HOST"
@@ -49,8 +52,6 @@ before_exit() {
     echo done.
 
     printf 'cleaning run dir... '
-    rm -f "$RUN_DIR/main.pid"
-    rm -f "$RUN_DIR/torrent.pipe"
     [ -z "$(ls -A "$RUN_DIR" 2>&1)" ] && rm -r "$RUN_DIR"
     echo done.
 
@@ -69,34 +70,21 @@ touch ./log/log.txt
 # Create Run Dir
 mkdir -p "$RUN_DIR"
 
-# Create Torrent Pipe
-[ ! -e "$RUN_DIR/torrent.pipe" ] && mkfifo "$RUN_DIR/torrent.pipe"
-
 # Main Thread
-[ -e "$RUN_DIR/main.pid" ] && { pkill -P "$(cat "$RUN_DIR/main.pid")"; rm "$RUN_DIR/main.pid"; }
 mkdir -p "$TORRENT_HOME"
 touch "$TORRENT_HOME/TORRENT_HOME"
-(
 ./bin/torsniff \
     --port "${LISTEN_PORT}" \
     --dir "${TORRENT_HOME}" \
     --friends "$MAX_FRIENDS" \
     --peers "$MAX_PEERS" \
-    | sed -E \
+    | stdbuf -oL -eL sed -E \
         -e '/^(name|size|file|running)|^$/d' \
         -e 's/^link: magnet:\?xt=urn:btih:([a-z0-9]+)$/\1/g' \
         -e "s#^([a-z0-9]{2})([a-z0-9]+)([a-z0-9]{2})\$#${TORRENT_HOME}/\\1/\\3/\\1\\2\\3.torrent#g" \
-    >> "$RUN_DIR/torrent.pipe"
-) &
-MAIN_PID="$!"
-echo "$MAIN_PID" > "$RUN_DIR/main.pid"
-echo "MIAN_PID=$MAIN_PID"
+    | ./bin/analyse.py /dev/stdin >> ./log/log.txt
+# stdbuf -oL -eL
 
-# Python Post-Process Thread
-./bin/analyse.py "$RUN_DIR/torrent.pipe" >> ./log/log.txt
-
-pkill -P "$MAIN_PID"
-rm -f "$RUN_DIR/main.pid" "$RUN_DIR/torrent.pipe"
 [ -z "$(ls -A "$RUN_DIR" 2>&1)" ] && rm -r "$RUN_DIR"
 
 exit 0
