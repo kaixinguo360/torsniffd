@@ -7,7 +7,6 @@ services:
       - 6881:6881/tcp
       - 6881:6881/udp
     volumes:
-      - ./bin:/opt/torsniff/bin:ro
       - ./conf:/opt/torsniff/conf:ro
       - ./log:/opt/torsniff/log:delegated
     depends_on:
@@ -18,4 +17,5 @@ services:
     command: redis-server --save 60 1
     volumes:
       - ./redis:/data
+
 

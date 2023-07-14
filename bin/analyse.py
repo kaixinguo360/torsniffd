@@ -14,6 +14,7 @@ from bencoder import bdecode
 max_file_count = 1000
 input_file = sys.argv[1]
 enable_redis=os.getenv('ENABLE_REDIS')
+redis_expire=int(os.getenv('REDIS_EXPIRE', '86400'))
 redis_host=os.getenv('REDIS_HOST', 'localhost')
 redis_port=int(os.getenv('REDIS_PORT', '6379'))
 
@@ -74,11 +75,11 @@ def check_hash_with_redis(t_hash):
         return True
     try:
         if r.exists(t_hash):
-            r.expire(t_hash, 3600)
+            r.expire(t_hash, redis_expire)
             r.incr(t_hash)
             return False
         # Record uncached hash to redis
-        r.setex(t_hash, 3600, 1)
+        r.setex(t_hash, redis_expire, 1)
         return True
     except Exception as e:
         return True
@@ -161,7 +162,8 @@ with open('./log/debug.txt', 'a') as f_debug, \
                     fs_node = fs
                     for j in range(len(f_path) - 1):
                         dir_name = f_path[j]
-                        keywords.append('d:' + dir_name)
+                        if fcount < max_file_count:
+                            keywords.append('d:' + dir_name)
                         if not dir_name in fs_node:
                             fs_node[dir_name] = {}
                         fs_node = fs_node[dir_name]

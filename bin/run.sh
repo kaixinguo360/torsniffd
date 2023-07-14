@@ -31,6 +31,10 @@ REDIS_PORT="${REDIS_PORT:-6379}"
 export REDIS_PORT
 echo "REDIS_PORT=$REDIS_PORT"
 
+REDIS_EXPIRE="${REDIS_EXPIRE:-86400}"
+export REDIS_EXPIRE
+echo "REDIS_EXPIRE=$REDIS_EXPIRE"
+
 rm_torrent() {
     local _TORRENT="$1"
     rm -r "$_TORRENT" 2>/dev/null
