@@ -8,17 +8,32 @@ import traceback
 from datetime import datetime
 
 import redis
+import pymysql
 from bencoder import bdecode
 
 #envs = collections.defaultdict(lambda:None, os.environ)
 max_file_count = 1000
 input_file = sys.argv[1]
-enable_redis=os.getenv('ENABLE_REDIS')
+
+redis_enabled=os.getenv('REDIS_ENABLED')
 redis_expire=int(os.getenv('REDIS_EXPIRE', '86400'))
 redis_host=os.getenv('REDIS_HOST', 'localhost')
 redis_port=int(os.getenv('REDIS_PORT', '6379'))
 
+mysql_enabled=os.getenv('MYSQL_ENABLED')
+mysql_host=os.getenv('MYSQL_HOST', 'localhost')
+mysql_port=int(os.getenv('MYSQL_PORT', '3306'))
+mysql_user=os.getenv('MYSQL_USER')
+mysql_passwd=os.getenv('MYSQL_PASSWORD')
+mysql_db=os.getenv('MYSQL_DB')
+
 r = redis.StrictRedis(host=redis_host, port=redis_port, db=0)
+try:
+    conn = pymysql.connect(host=mysql_host, port=mysql_port, user=mysql_user, passwd=mysql_passwd, db=mysql_db)
+except:
+    print('\n>>>>> Mysql Connect Failed! <<<<<\n', file=sys.stderr)
+    traceback.print_exc(file=sys.stderr)
+    sys.stderr.flush()
 
 def dir_empty(dir_path):
     try:
@@ -71,7 +86,7 @@ def rm_torrent(torrent):
 
 # Use redis to de-duplication (fast)
 def check_hash_with_redis(t_hash):
-    if not enable_redis:
+    if not redis_enabled:
         return True
     try:
         if r.exists(t_hash):
@@ -98,13 +113,42 @@ def check_hash_with_file(t_hash):
         return False
 
 # Check hash to de-duplication
-def check_hash(t_hash):
+def check_hash(t_hash, time=datetime.now()):
+    if not check_hash_with_mysql(t_hash, time):
+        return False
     if not check_hash_with_redis(t_hash):
         return False
     if not check_hash_with_file(t_hash):
         return False
     return True
 
+# Use mysql to de-duplication
+def check_hash_with_mysql(hash, time=datetime.now()):
+    if not mysql_enabled:
+        return True
+    try:
+        with conn.cursor() as c:
+            #c.execute(f"select hash from torrent where hash = '{hash}'")
+            #print(f"MYSQL: {c.fetchall()}", file=sys.stderr)
+            time_str = now.strftime('%Y-%m-%d %H:%M:%S');
+            sql = f"update torrent set num = num + 1, time = '{time_str}' where hash = '{hash}'"
+            line_count = c.execute(sql)
+            conn.commit()
+            return line_count == 0
+    except Exception as e:
+        raise True
+
+# Save hash and name to mysql database
+def save_to_mysql(hash, size, name, time=datetime.now()):
+    if mysql_enabled:
+        try:
+            with conn.cursor() as c:
+                time_str = now.strftime('%Y-%m-%d %H:%M:%S');
+                sql = f"insert into torrent (hash, time, num, size, name, ctime) values ('{hash}', '{time_str}', 1, '{size}', {conn.escape(name)}, '{time_str}')"
+                c.execute(sql)
+                conn.commit()
+        except Exception as e:
+            raise e
 
 with open('./log/debug.txt', 'a') as f_debug, \
     open('./log/hash.txt', 'a') as f_hash, \
@@ -117,17 +161,18 @@ with open('./log/debug.txt', 'a') as f_debug, \
 
             #print(f"torrent: {torrent}")
             t_hash = torrent.split('/')[-1].split('.')[0]
-            now = str(datetime.timestamp(datetime.now()))[:14]
+            now = datetime.now()
+            now_timestamp = str(datetime.timestamp(now))[:14]
             #print(f"hash: {t_hash}")
 
-            if not check_hash(t_hash):
-                f_debug.write(f"{t_hash} {now} f\n")
+            if not check_hash(t_hash, now):
+                f_debug.write(f"{t_hash} {now_timestamp} f\n")
                 f_debug.flush()
                 rm_torrent(torrent)
                 continue
 
             # Record new hash to debug file
-            f_debug.write(f"{t_hash} {now} p\n")
+            f_debug.write(f"{t_hash} {now_timestamp} p\n")
             f_debug.flush()
 
             with open(torrent, "rb") as t:
@@ -195,6 +240,8 @@ with open('./log/debug.txt', 'a') as f_debug, \
             t_node['keywords'] = keywords
 
             print(f"{t_hash}\ts:{t_node['size']}\t{keywords}")
+
+            save_to_mysql(hash=t_hash, size=t_node['size'], name=meta_info['name'], time=now)
 
             #import pprint
             #pp = pprint.PrettyPrinter(indent=2)

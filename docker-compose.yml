@@ -18,4 +18,13 @@ services:
     volumes:
       - ./redis:/data
 
+  mysql:
+    image: mariadb:10.5
+    environment:
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-test}
+      - MYSQL_USER=${MYSQL_USER:-test}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-1234567}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-1234567}
+    volumes:
+      - ./mysql:/var/lib/mysql
 
