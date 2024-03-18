@@ -10,13 +10,13 @@ if [ -n "$(command -v rg)" ]; then
         -I \
         -i \
         -e \
-        "^$HASH" ./log/log*
+        "^$HASH" $(ls -r ./log/log*)
 else
     grep \
         -h \
         -i \
         -E \
-        "^$HASH" ./log/log*
+        "^$HASH" $(ls -r ./log/log*)
 fi
 ) \
     | sort -u \

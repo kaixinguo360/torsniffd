@@ -10,13 +10,13 @@ if [ -n "$(command -v rg)" ]; then
         -I \
         -i \
         -e \
-        "^${HASH}.*p$" ./log/debug*
+        "^${HASH}.*p$" $(ls -r ./log/debug*)
 else
     grep \
         -h \
         -i \
         -E \
-        "^${HASH}.*p$" ./log/debug*
+        "^${HASH}.*p$" $(ls -r ./log/debug*)
 fi
 ) \
     | stdbuf -oL -eL \

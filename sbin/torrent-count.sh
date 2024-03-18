@@ -4,8 +4,8 @@ cd "$(dirname $(realpath "$0"))/.."
 
 (
 if [ -n "$1" ]; then
-    grep -oE "^$1" ./log/debug*
+    grep -oE "^$1" $(ls -r ./log/debug*)
 else
-    cat ./log/log*
+    cat $(ls -r ./log/log*)
 fi
 ) | wc -l | awk '{print $1}'

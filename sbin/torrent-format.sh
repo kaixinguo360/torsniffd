@@ -1,7 +1,7 @@
 #!/bin/sh
 
+REGEX="${REGEX:-$1}"
 if [ -n "$FILE" -o -n "$file" ]; then
-    REGEX="${REGEX:-$1}"
     if [ -n "$RAW" -o -n "$raw" ]; then
         cat
     elif [ -n "$FULL" -o -n "$full" ]; then
@@ -32,12 +32,14 @@ else
         sed -E \
             -e 's/^([^ ]+)\ts:([^ ]+)\tn:([^\t]*).*$/\1\t\2    \t\3/g' \
             -e 's/^(.*)\t(.{8}).*\t(.*)$/\1  \2  \3/g' \
-            | (tee /dev/stderr | wc -l | sed 's/^/Total: /') 2>&1
+            | (tee /dev/stderr | wc -l | sed 's/^/Total: /') 2>&1 \
+            | grep -iE --color "$REGEX|$"
     else
         sed -E \
             -e 's/^(.{8}).{32}\ts:([^ ]+)\tn:([^\t]*).*$/\1\t\2    \t\3/g' \
             -e 's/^(.*)\t(.{8}).*\t(.*)$/\1  \2  \3/g' \
-            | (tee /dev/stderr | wc -l | sed 's/^/Total: /') 2>&1
+            | (tee /dev/stderr | wc -l | sed 's/^/Total: /') 2>&1 \
+            | grep -iE --color "$REGEX|$"
     fi
 fi
 

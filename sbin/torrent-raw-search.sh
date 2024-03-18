@@ -11,12 +11,12 @@ if [ -n "$(command -v rg)" ]; then
         -I \
         -i \
         -e \
-        "$TEXT" ./log/log*
+        "$TEXT" $(ls -r ./log/log*)
 else
     grep \
         -h \
         -i \
         -E \
-        "$TEXT" ./log/log*
+        "$TEXT" $(ls -r ./log/log*)
 fi
-) | ./sbin/torrent-format.sh "$TEXT"
+) | stdbuf -oL -eL ./sbin/torrent-format.sh "$TEXT"
