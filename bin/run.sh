@@ -1,38 +1,31 @@
 #!/bin/sh
 
-cd $(realpath $(dirname $0)/..)
+ROOT_PATH="$(realpath $(dirname $0)/..)"
 
 # Load Config
-[ -d ./conf ] && for config in $(ls ./conf/*.sh); do . "$config"; done
+[ -d "$ROOT_PATH/conf" ] && for config in $(ls "$ROOT_PATH"/conf/*.sh); do . "$config"; done
 
 LISTEN_PORT="${LISTEN_PORT:-6881}"
-echo "LISTEN_PORT=$LISTEN_PORT"
-
 MAX_FRIENDS="${MAX_FRIENDS:-500}"
-echo "MAX_FRIENDS=$MAX_FRIENDS"
-
 MAX_PEERS="${MAX_PEERS:-400}"
-echo "MAX_PEERS=$MAX_PEERS"
-
 TORRENT_HOME="${TORRENT_HOME:-/tmp/torrents}"
-echo "TORRENT_HOME=$TORRENT_HOME"
-
 RUN_DIR="${RUN_DIR:-$(realpath ./run)}"
+echo "LISTEN_PORT=$LISTEN_PORT"
+echo "MAX_FRIENDS=$MAX_FRIENDS"
+echo "MAX_PEERS=$MAX_PEERS"
+echo "TORRENT_HOME=$TORRENT_HOME"
 echo "RUN_DIR=$RUN_DIR"
 
-export REDIS_ENABLED
-echo "REDIS_ENABLED=$REDIS_ENABLED"
-
 REDIS_HOST="${REDIS_HOST:-localhost}"
-export REDIS_HOST
-echo "REDIS_HOST=$REDIS_HOST"
-
 REDIS_PORT="${REDIS_PORT:-6379}"
-export REDIS_PORT
-echo "REDIS_PORT=$REDIS_PORT"
-
 REDIS_EXPIRE="${REDIS_EXPIRE:-86400}"
+export REDIS_ENABLED
+export REDIS_HOST
+export REDIS_PORT
 export REDIS_EXPIRE
+echo "REDIS_ENABLED=$REDIS_ENABLED"
+echo "REDIS_HOST=$REDIS_HOST"
+echo "REDIS_PORT=$REDIS_PORT"
 echo "REDIS_EXPIRE=$REDIS_EXPIRE"
 
 MYSQL_HOST="${MYSQL_HOST:-localhost}"
@@ -53,14 +46,16 @@ echo "MYSQL_USER=$MYSQL_USER"
 echo "MYSQL_PASSWORD=$MYSQL_PASSWORD"
 echo "MYSQL_DB=$MYSQL_DB"
 
-rm_torrent() {
-    local _TORRENT="$1"
-    rm -r "$_TORRENT" 2>/dev/null
-    _TORRENT="$(dirname "$_TORRENT")"
-    [ -z "$(ls -A "$_TORRENT" 2>&1)" -a "$_TORRENT" != / ] && rm -r "$_TORRENT" 2>/dev/null
-    _TORRENT="$(dirname "$_TORRENT")"
-    [ -z "$(ls -A "$_TORRENT" 2>&1)" -a "$_TORRENT" != / ] && rm -r "$_TORRENT" 2>/dev/null
-}
+# Entrypoint for other scripts #
+
+if [ -n "$*" ]; then
+    sh -c "$*"
+    exit
+fi
+
+# Entrypoint for main script #
+
+cd "$ROOT_PATH" || exit
 
 before_exit() {
 
@@ -111,7 +106,19 @@ touch "$TORRENT_HOME/TORRENT_HOME"
 
 exit 0
 
+
+
+
 # De-duplication Filter Thread (Deprecated, too slow, too simple)
+
+rm_torrent() {
+    local _TORRENT="$1"
+    rm -r "$_TORRENT" 2>/dev/null
+    _TORRENT="$(dirname "$_TORRENT")"
+    [ -z "$(ls -A "$_TORRENT" 2>&1)" -a "$_TORRENT" != / ] && rm -r "$_TORRENT" 2>/dev/null
+    _TORRENT="$(dirname "$_TORRENT")"
+    [ -z "$(ls -A "$_TORRENT" 2>&1)" -a "$_TORRENT" != / ] && rm -r "$_TORRENT" 2>/dev/null
+}
 
 [ ! -e "$RUN_DIR/filtered.pipe" ] && mkfifo "$RUN_DIR/filtered.pipe"
 (
