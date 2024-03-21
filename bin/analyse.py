@@ -131,7 +131,7 @@ def check_hash_with_mysql(hash, time=datetime.now()):
             #c.execute(f"select hash from torrent where hash = '{hash}'")
             #print(f"MYSQL: {c.fetchall()}", file=sys.stderr)
             time_str = now.strftime('%Y-%m-%d %H:%M:%S');
-            sql = f"update torrent set num = num + 1, time = '{time_str}' where hash = '{hash}'"
+            sql = f"update torrent set num = num + 1, time = '{time_str}' where hash = '{hash}' and name is not null"
             line_count = c.execute(sql)
             conn.commit()
             return line_count == 0
@@ -143,10 +143,21 @@ def save_to_mysql(hash, size, name, time=datetime.now()):
     if mysql_enabled:
         try:
             with conn.cursor() as c:
-                time_str = now.strftime('%Y-%m-%d %H:%M:%S');
-                sql = f"insert into torrent (hash, time, num, size, name, ctime) values ('{hash}', '{time_str}', 1, '{size}', {conn.escape(name)}, '{time_str}')"
+                sql = f"select name from torrent where hash = '{hash}'"
                 c.execute(sql)
-                conn.commit()
+                old_record = c.fetchone()
+                if old_record:
+                    if not old_record[0]:
+                        sql = f"update torrent set size = '{size}', name = {conn.escape(name)} where hash = '{hash}'"
+                        c.execute(sql)
+                        conn.commit()
+                    #else:
+                    #    print(f"MYSQL: skip {hash}", file=sys.stderr)
+                else:
+                    time_str = now.strftime('%Y-%m-%d %H:%M:%S');
+                    sql = f"insert into torrent (hash, time, num, size, name, ctime) values ('{hash}', '{time_str}', 1, '{size}', {conn.escape(name)}, '{time_str}')"
+                    c.execute(sql)
+                    conn.commit()
         except Exception as e:
             raise e
 
@@ -184,15 +195,17 @@ with open('./log/debug.txt', 'a') as f_debug, \
 
             #keywords = set()
             keywords = [];
+
+            t_name = meta_info['name.utf-8'] if 'name.utf-8' in meta_info else meta_info['name']
             t_node = {
-                'name': meta_info['name'],
+                'name': t_name,
                 'size': sizeof_fmt(meta_info['piece length'] * len(meta_info['pieces']) / 20),
                 'length': meta_info['piece length'] * len(meta_info['pieces']) / 20,
                 '_id': t_hash,
                 'keywords': keywords,
             }
 
-            keywords.append('n:' + meta_info['name'])
+            keywords.append('n:' + t_name)
             
             if 'files' in meta_info:
                 fs = {}
@@ -201,8 +214,8 @@ with open('./log/debug.txt', 'a') as f_debug, \
                 for i, file in enumerate(meta_info['files']):
                     #print(f"file[{i}].length: {file['length']}")
                     #print(f"file[{i}].path: {'/'.join(file['path'])}")
-                    f_path = file['path']
-                    f_name = file['path'][-1]
+                    f_path = file['path.utf-8'] if 'path.utf-8' in file else file['path']
+                    f_name = f_path[-1]
                     f_length = file['length']
                     fs_node = fs
                     for j in range(len(f_path) - 1):
@@ -222,7 +235,7 @@ with open('./log/debug.txt', 'a') as f_debug, \
                 t_node['files'] = fs
             else:
                 t_node['multifile'] = False
-                t_node['ext'] = meta_info['name'].split('.')[-1].lower()
+                t_node['ext'] = t_name.split('.')[-1].lower()
 
             if 'comment' in meta_data:
                 t_node['comment'] = meta_data['comment']
@@ -241,7 +254,7 @@ with open('./log/debug.txt', 'a') as f_debug, \
 
             print(f"{t_hash}\ts:{t_node['size']}\t{keywords}")
 
-            save_to_mysql(hash=t_hash, size=t_node['size'], name=meta_info['name'], time=now)
+            save_to_mysql(hash=t_hash, size=t_node['size'], name=t_name, time=now)
 
             #import pprint
             #pp = pprint.PrettyPrinter(indent=2)
