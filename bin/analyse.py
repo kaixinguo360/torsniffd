@@ -136,7 +136,7 @@ def check_hash_with_mysql(hash, time=datetime.now()):
             conn.commit()
             return line_count == 0
     except Exception as e:
-        raise True
+        return True
 
 # Save hash and name to mysql database
 def save_to_mysql(hash, size, name, time=datetime.now()):
