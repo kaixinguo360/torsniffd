@@ -1,3 +1,4 @@
 bencoder.pyx
 redis
 pymysql
+chardet

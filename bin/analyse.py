@@ -10,6 +10,7 @@ from datetime import datetime
 import redis
 import pymysql
 from bencoder import bdecode
+import chardet
 
 #envs = collections.defaultdict(lambda:None, os.environ)
 max_file_count = 1000
@@ -49,13 +50,24 @@ def sizeof_fmt(num, suffix="B", factor=1024.0):
         num /= factor
     return f"{num:.1f}Yi{suffix}"
 
+def str_decode(d):
+    if isinstance(d, bytes):
+        try:
+            return d.decode()
+        except:
+            pass
+        try:
+            encode = chardet.detect(d)
+            if encode and encode['confidence'] > 0.9:
+                return d.decode(encode['encoding'])
+        except Exception as e:
+            pass
+        return d
+
 #def obj_decode(d: str | dict | list):
 def obj_decode(d):
     if isinstance(d, bytes):
-        try:
-            d = d.decode()
-        except:
-            pass
+        d = str_decode(d)
     if isinstance(d, dict):
         new_dict = {}
         for k in d:
