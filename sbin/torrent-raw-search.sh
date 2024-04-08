@@ -8,6 +8,7 @@ printf 'Regex: %s\n' "$TEXT" >&2
 (
 if [ -n "$(command -v rg)" ]; then
     rg \
+        -z \
         -I \
         -i \
         -e \

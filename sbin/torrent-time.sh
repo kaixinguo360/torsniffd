@@ -7,6 +7,7 @@ HASH="$1"
 (
 if [ -n "$(command -v rg)" ]; then
     rg \
+        -z \
         -I \
         -i \
         -e \
