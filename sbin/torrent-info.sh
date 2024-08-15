@@ -13,7 +13,7 @@ if [ -n "$(command -v rg)" ]; then
         -e \
         "^$HASH" $(ls -r ./log/log*)
 else
-    grep \
+    zgrep \
         -h \
         -i \
         -E \

@@ -14,7 +14,7 @@ if [ -n "$(command -v rg)" ]; then
         -e \
         "$TEXT" $(ls -r ./log/log*)
 else
-    grep \
+    zgrep \
         -h \
         -i \
         -E \

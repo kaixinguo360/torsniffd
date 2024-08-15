@@ -13,7 +13,7 @@ if [ -n "$(command -v rg)" ]; then
         -e \
         "^${HASH}.*p$" $(ls -r ./log/debug*)
 else
-    grep \
+    zgrep \
         -h \
         -i \
         -E \
