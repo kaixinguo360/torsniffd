@@ -14,12 +14,12 @@ if [ -n "$(command -v rg)" ]; then
         "^$HASH" $(ls -r ./log/log*)
 else
     zgrep \
+        -a \
         -h \
         -i \
         -E \
         "^$HASH" $(ls -r ./log/log*)
 fi
 ) \
-    | sort -u \
-    | sed -E -e 's#^([^ ]+)\ts:([^ ]+)\tn:([^\t]+)\t?(.*)$#----------------\nHash: \1\nURI : magnet:?xt=urn:btih:\1\nSize: \2\nName: \3\n----------------\n\4#g' -e 's#\t#\n#g' \
-    | less
+    | stdbuf -oL -eL sed -E -e 's#^([^ ]+)\ts:([^ ]+)\tn:([^\t]+)\t?(.*)$#----------------\nHash: \1\nURI : magnet:?xt=urn:btih:\1\nSize: \2\nName: \3\n----------------\n\4#g' -e 's#\t#\n#g' \
+    | stdbuf -oL -eL less

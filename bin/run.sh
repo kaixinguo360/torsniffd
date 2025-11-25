@@ -1,5 +1,7 @@
 #!/bin/sh
 
+sleep 10
+
 ROOT_PATH="$(realpath $(dirname $0)/..)"
 
 # Load Config

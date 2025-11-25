@@ -1,10 +1,12 @@
-FROM python:3-alpine
+FROM python:3.11-alpine
 
 ENV WORK_DIR=/opt/torsniff
 
-COPY ./ "$WORK_DIR/"
+COPY ./bin/ "$WORK_DIR/bin/"
+COPY ./conf/ "$WORK_DIR/conf/"
 
-RUN pip install -r "$WORK_DIR/bin/requirements.txt"
+RUN pip install -r "$WORK_DIR/bin/requirements.txt" \
+    && apk add --no-cache coreutils
 
 ENV PATH="$WORK_DIR/sbin:$PATH"
 
